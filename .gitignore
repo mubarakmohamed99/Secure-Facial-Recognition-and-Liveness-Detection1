@@ -8,4 +8,4 @@ __pycache__/
 *.pyc
 
 # Our Face Data for Privacy Purposes
-faces_db/
+# faces_db/
