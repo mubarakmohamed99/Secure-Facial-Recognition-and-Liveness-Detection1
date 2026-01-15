@@ -15,7 +15,7 @@ It prevents spoofing attacks (using photos or videos) by requiring the user to p
 
 ### 1. Prerequisites
 
-* Python 3.8 - 3.10 is recommended (InsightFace and ONNX runtimes can be picky with newer Python versions).
+* Python 3.11 is recommended (InsightFace and ONNX runtimes can be picky with newer Python versions).
 * A working webcam.
 
 ### 2. Install Dependencies
