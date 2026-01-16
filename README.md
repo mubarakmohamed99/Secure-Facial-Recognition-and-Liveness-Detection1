@@ -87,6 +87,13 @@ python main.py
 
 ```
 
+If you are running locally and want full **liveness + recognition**, install the full stack:
+
+```bash
+pip install -r requirements-full.txt
+
+```
+
 ### Optional: Run the Streamlit Web UI
 
 After installing the dependencies, you can launch a simple web interface (camera snapshot or image upload) with:
@@ -95,8 +102,9 @@ After installing the dependencies, you can launch a simple web interface (camera
 streamlit run streamlit_app.py
 
 ```
-
 This UI reuses the same embeddings generated in `face_embeddings/` to perform identity verification from a single image. For full active liveness detection with real-time challenges, use the OpenCV application via `python main.py`.
+
+On Streamlit Cloud, only the lighter dependencies from `requirements.txt` are installed (no MediaPipe). Liveness is therefore **disabled** in the cloud UI, but identity recognition still works using the precomputed embeddings and InsightFace.
 
 ### The Verification Flow
 

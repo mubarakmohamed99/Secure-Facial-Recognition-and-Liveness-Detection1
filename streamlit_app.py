@@ -1,14 +1,38 @@
+import os
+import pickle
+
 import cv2
 import numpy as np
 import streamlit as st
-from main import IdentitySystem
+from insightface.app import FaceAnalysis
 
 
-def load_system() -> IdentitySystem:
-    """Singleton-style loader so the FaceAnalysis model is created only once."""
-    if "identity_system" not in st.session_state:
-        st.session_state["identity_system"] = IdentitySystem()
-    return st.session_state["identity_system"]
+SIMILARITY_THRESHOLD = 0.45
+EMBEDDINGS_DIR = "face_embeddings"
+
+
+def load_recognizer():
+    """Load FaceAnalysis and known embeddings once and cache in session state."""
+    if "face_app" not in st.session_state:
+        app = FaceAnalysis(
+            name="buffalo_s",
+            providers=["CPUExecutionProvider"],
+            allowed_modules=["detection", "recognition"],
+        )
+        app.prepare(ctx_id=0, det_size=(640, 640))
+        st.session_state["face_app"] = app
+
+    if "known_faces" not in st.session_state:
+        known_faces: dict[str, np.ndarray] = {}
+        if os.path.exists(EMBEDDINGS_DIR):
+            for f in os.listdir(EMBEDDINGS_DIR):
+                if f.endswith(".pkl"):
+                    name = os.path.splitext(f)[0].replace("_", " ")
+                    with open(os.path.join(EMBEDDINGS_DIR, f), "rb") as fh:
+                        known_faces[name] = pickle.load(fh)
+        st.session_state["known_faces"] = known_faces
+
+    return st.session_state["face_app"], st.session_state["known_faces"]
 
 
 def opencv_image_from_upload(uploaded_file) -> np.ndarray | None:
@@ -23,16 +47,34 @@ def opencv_image_from_upload(uploaded_file) -> np.ndarray | None:
 
 def verify_image(frame_bgr: np.ndarray):
     """Run recognition on a single BGR frame and display results in the UI."""
-    system = load_system()
+    app, known_faces = load_recognizer()
 
-    # Run recognition using the existing logic from IdentitySystem
-    name, score = system.recognize(frame_bgr)
+    # Resize similar to main app to speed up processing
+    scale_factor = 0.5
+    small_frame = cv2.resize(frame_bgr, (0, 0), fx=scale_factor, fy=scale_factor)
+
+    faces = app.get(small_frame)
+    if not faces:
+        st.error("No face detected in the image.")
+        return
+
+    # Use the largest face
+    face = max(faces, key=lambda x: (x.bbox[2] - x.bbox[0]) * (x.bbox[3] - x.bbox[1]))
+
+    best_name = None
+    best_score = 0.0
+
+    for name, ref_emb in known_faces.items():
+        sim = float(np.dot(face.embedding, ref_emb) / (np.linalg.norm(face.embedding) * np.linalg.norm(ref_emb)))
+        if sim > best_score:
+            best_score = sim
+            best_name = name
 
     st.subheader("Result")
-    if name is not None:
-        st.success(f"Identity verified: {name} (confidence: {score * 100:.1f}%)")
+    if best_name is not None and best_score >= SIMILARITY_THRESHOLD:
+        st.success(f"Identity verified: {best_name} (confidence: {best_score * 100:.1f}%)")
     else:
-        st.error(f"No known identity matched. Best similarity: {score * 100:.1f}%")
+        st.error(f"No known identity matched. Best similarity: {best_score * 100:.1f}%")
 
 
 def main():
@@ -43,9 +85,8 @@ def main():
         "to perform identity verification from a single image. "
         "For full active liveness (head turns, mouth open, etc.), use the OpenCV UI via main.py."
     )
-
-    system = load_system()
-    if not system.known_faces:
+    _, known_faces = load_recognizer()
+    if not known_faces:
         st.warning(
             "No embeddings found in 'face_embeddings/'. "
             "Run extract_embeddings.py after populating faces_db/ to register users."
