@@ -87,6 +87,17 @@ python main.py
 
 ```
 
+### Optional: Run the Streamlit Web UI
+
+After installing the dependencies, you can launch a simple web interface (camera snapshot or image upload) with:
+
+```bash
+streamlit run streamlit_app.py
+
+```
+
+This UI reuses the same embeddings generated in `face_embeddings/` to perform identity verification from a single image. For full active liveness detection with real-time challenges, use the OpenCV application via `python main.py`.
+
 ### The Verification Flow
 
 1. **Liveness Check:** The system will instruct you to perform actions (e.g., "Turn Head LEFT", "Open MOUTH").
